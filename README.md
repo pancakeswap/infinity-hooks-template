@@ -1,6 +1,6 @@
-# Pancake v4 hooks template
+# Infinity hooks template
 
-[`Use this Template`](https://github.com/new?owner=pancakeswap&template_name=pancake-v4-hooks-template&template_owner=pancakeswap)
+[`Use this Template`](https://github.com/new?owner=pancakeswap&template_name=infinity-hooks-template&template_owner=pancakeswap)
 
 ## Prerequisite
 
