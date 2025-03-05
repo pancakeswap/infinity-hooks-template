@@ -4,22 +4,23 @@ pragma solidity ^0.8.24;
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
-import {BinPoolManager} from "pancake-v4-core/src/pool-bin/BinPoolManager.sol";
-import {Vault} from "pancake-v4-core/src/Vault.sol";
-import {Currency} from "pancake-v4-core/src/types/Currency.sol";
-import {SortTokens} from "pancake-v4-core/test/helpers/SortTokens.sol";
-import {PoolKey} from "pancake-v4-core/src/types/PoolKey.sol";
-import {SafeCast} from "pancake-v4-core/src/pool-bin/libraries/math/SafeCast.sol";
-import {BinPositionManager} from "pancake-v4-periphery/src/pool-bin/BinPositionManager.sol";
-import {IBinPositionManager} from "pancake-v4-periphery/src/pool-bin/interfaces/IBinPositionManager.sol";
-import {IBinRouterBase} from "pancake-v4-periphery/src/pool-bin/interfaces/IBinRouterBase.sol";
-import {Planner, Plan} from "pancake-v4-periphery/src/libraries/Planner.sol";
-import {Actions} from "pancake-v4-periphery/src/libraries/Actions.sol";
+import {BinPoolManager} from "infinity-core/src/pool-bin/BinPoolManager.sol";
+import {Vault} from "infinity-core/src/Vault.sol";
+import {Currency} from "infinity-core/src/types/Currency.sol";
+import {SortTokens} from "infinity-core/test/helpers/SortTokens.sol";
+import {PoolKey} from "infinity-core/src/types/PoolKey.sol";
+import {SafeCast} from "infinity-core/src/pool-bin/libraries/math/SafeCast.sol";
+import {BinPositionManager} from "infinity-periphery/src/pool-bin/BinPositionManager.sol";
+import {IBinPositionManager} from "infinity-periphery/src/pool-bin/interfaces/IBinPositionManager.sol";
+import {IBinRouterBase} from "infinity-periphery/src/pool-bin/interfaces/IBinRouterBase.sol";
+import {Planner, Plan} from "infinity-periphery/src/libraries/Planner.sol";
+import {Actions} from "infinity-periphery/src/libraries/Actions.sol";
 import {DeployPermit2} from "permit2/test/utils/DeployPermit2.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
-import {UniversalRouter, RouterParameters} from "pancake-v4-universal-router/src/UniversalRouter.sol";
-import {Commands} from "pancake-v4-universal-router/src/libraries/Commands.sol";
-import {ActionConstants} from "pancake-v4-periphery/src/libraries/ActionConstants.sol";
+import {UniversalRouter, RouterParameters} from "infinity-universal-router/src/UniversalRouter.sol";
+import {Commands} from "infinity-universal-router/src/libraries/Commands.sol";
+import {ActionConstants} from "infinity-periphery/src/libraries/ActionConstants.sol";
+import {IWETH9} from "infinity-periphery/src/interfaces/external/IWETH9.sol";
 
 contract BinTestUtils is DeployPermit2 {
     using SafeCast for uint256;
@@ -33,11 +34,11 @@ contract BinTestUtils is DeployPermit2 {
 
     function deployContractsWithTokens() internal returns (Currency, Currency) {
         vault = new Vault();
-        poolManager = new BinPoolManager(vault, 500000);
+        poolManager = new BinPoolManager(vault);
         vault.registerApp(address(poolManager));
 
         permit2 = IAllowanceTransfer(deployPermit2());
-        positionManager = new BinPositionManager(vault, poolManager, permit2);
+        positionManager = new BinPositionManager(vault, poolManager, permit2, IWETH9(address(0)));
 
         RouterParameters memory params = RouterParameters({
             permit2: address(permit2),
@@ -49,12 +50,12 @@ contract BinTestUtils is DeployPermit2 {
             v3InitCodeHash: bytes32(0),
             stableFactory: address(0),
             stableInfo: address(0),
-            v4Vault: address(vault),
-            v4ClPoolManager: address(0),
-            v4BinPoolManager: address(poolManager),
+            infiVault: address(vault),
+            infiClPoolManager: address(0),
+            infiBinPoolManager: address(poolManager),
             v3NFTPositionManager: address(0),
-            v4ClPositionManager: address(0),
-            v4BinPositionManager: address(positionManager)
+            infiClPositionManager: address(0),
+            infiBinPositionManager: address(positionManager)
         });
         universalRouter = new UniversalRouter(params);
 
@@ -110,14 +111,15 @@ contract BinTestUtils is DeployPermit2 {
             poolKey: key,
             amount0: amountX,
             amount1: amountY,
-            amount0Min: 0, // note in real world, this should not be 0
-            amount1Min: 0, // note in real world, this should not be 0
+            amount0Max: type(uint128).max, // note in real world, this should not be type(uint128).max
+            amount1Max: type(uint128).max, // note in real world, this should not be type(uint128).max
             activeIdDesired: uint256(currentActiveId),
             idSlippage: 0,
             deltaIds: convertToRelative(binIds, currentActiveId),
             distributionX: distribX,
             distributionY: distribY,
-            to: recipient
+            to: recipient,
+            hookData: bytes("")
         });
 
         Plan memory planner = Planner.init().add(Actions.BIN_ADD_LIQUIDITY, abi.encode(params));
@@ -131,7 +133,7 @@ contract BinTestUtils is DeployPermit2 {
             ? plan.finalizeSwap(params.poolKey.currency0, params.poolKey.currency1, ActionConstants.MSG_SENDER)
             : plan.finalizeSwap(params.poolKey.currency1, params.poolKey.currency0, ActionConstants.MSG_SENDER);
 
-        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V4_SWAP)));
+        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.INFI_SWAP)));
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = data;
 
@@ -144,7 +146,7 @@ contract BinTestUtils is DeployPermit2 {
             ? plan.finalizeSwap(params.poolKey.currency0, params.poolKey.currency1, ActionConstants.MSG_SENDER)
             : plan.finalizeSwap(params.poolKey.currency1, params.poolKey.currency0, ActionConstants.MSG_SENDER);
 
-        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V4_SWAP)));
+        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.INFI_SWAP)));
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = data;
 

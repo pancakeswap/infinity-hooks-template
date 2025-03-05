@@ -3,13 +3,13 @@ pragma solidity ^0.8.24;
 
 import {MockERC20} from "solmate/src/test/utils/mocks/MockERC20.sol";
 import {Test} from "forge-std/Test.sol";
-import {Currency} from "pancake-v4-core/src/types/Currency.sol";
-import {PoolKey} from "pancake-v4-core/src/types/PoolKey.sol";
-import {BinPoolParametersHelper} from "pancake-v4-core/src/pool-bin/libraries/BinPoolParametersHelper.sol";
+import {Currency} from "infinity-core/src/types/Currency.sol";
+import {PoolKey} from "infinity-core/src/types/PoolKey.sol";
+import {BinPoolParametersHelper} from "infinity-core/src/pool-bin/libraries/BinPoolParametersHelper.sol";
 import {BinCounterHook} from "../../src/pool-bin/BinCounterHook.sol";
 import {BinTestUtils} from "./utils/BinTestUtils.sol";
-import {PoolIdLibrary} from "pancake-v4-core/src/types/PoolId.sol";
-import {IBinRouterBase} from "pancake-v4-periphery/src/pool-bin/interfaces/IBinRouterBase.sol";
+import {PoolIdLibrary} from "infinity-core/src/types/PoolId.sol";
+import {IBinRouterBase} from "infinity-periphery/src/pool-bin/interfaces/IBinRouterBase.sol";
 
 contract BinCounterHookTest is Test, BinTestUtils {
     using PoolIdLibrary for PoolKey;
@@ -37,7 +37,7 @@ contract BinCounterHookTest is Test, BinTestUtils {
         });
 
         // initialize pool at 1:1 price point (assume stablecoin pair)
-        poolManager.initialize(key, ACTIVE_ID, new bytes(0));
+        poolManager.initialize(key, ACTIVE_ID);
     }
 
     function testLiquidityCallback() public {

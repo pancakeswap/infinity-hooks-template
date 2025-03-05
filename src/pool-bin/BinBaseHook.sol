@@ -16,22 +16,34 @@ import {
     HOOKS_AFTER_SWAP_RETURNS_DELTA_OFFSET,
     HOOKS_AFTER_MINT_RETURNS_DELTA_OFFSET,
     HOOKS_AFTER_BURN_RETURNS_DELTA_OFFSET
-} from "pancake-v4-core/src/pool-bin/interfaces/IBinHooks.sol";
-import {PoolKey} from "pancake-v4-core/src/types/PoolKey.sol";
-import {BeforeSwapDelta} from "pancake-v4-core/src/types/BeforeSwapDelta.sol";
-import {BalanceDelta} from "pancake-v4-core/src/types/BalanceDelta.sol";
-import {IHooks} from "pancake-v4-core/src/interfaces/IHooks.sol";
-import {IVault} from "pancake-v4-core/src/interfaces/IVault.sol";
-import {IBinHooks} from "pancake-v4-core/src/pool-bin/interfaces/IBinHooks.sol";
-import {IBinPoolManager} from "pancake-v4-core/src/pool-bin/interfaces/IBinPoolManager.sol";
-import {BinPoolManager} from "pancake-v4-core/src/pool-bin/BinPoolManager.sol";
+} from "infinity-core/src/pool-bin/interfaces/IBinHooks.sol";
+import {PoolKey} from "infinity-core/src/types/PoolKey.sol";
+import {BalanceDelta} from "infinity-core/src/types/BalanceDelta.sol";
+import {BeforeSwapDelta} from "infinity-core/src/types/BeforeSwapDelta.sol";
+import {IHooks} from "infinity-core/src/interfaces/IHooks.sol";
+import {IVault} from "infinity-core/src/interfaces/IVault.sol";
+import {IBinHooks} from "infinity-core/src/pool-bin/interfaces/IBinHooks.sol";
+import {IBinPoolManager} from "infinity-core/src/pool-bin/interfaces/IBinPoolManager.sol";
+import {BinPoolManager} from "infinity-core/src/pool-bin/BinPoolManager.sol";
 
+/// @notice BaseHook abstract contract for Bin pool hooks to inherit
 abstract contract BinBaseHook is IBinHooks {
+    /// @notice The sender is not the pool manager
     error NotPoolManager();
+
+    /// @notice The sender is not the vault
     error NotVault();
+
+    /// @notice The sender is not this contract
     error NotSelf();
+
+    /// @notice The pool key does not include this hook
     error InvalidPool();
+
+    /// @notice The delegation of lockAcquired failed
     error LockFailure();
+
+    /// @notice The method is not implemented
     error HookNotImplemented();
 
     struct Permissions {
@@ -45,10 +57,10 @@ abstract contract BinBaseHook is IBinHooks {
         bool afterSwap;
         bool beforeDonate;
         bool afterDonate;
-        bool beforeSwapReturnsDelta;
-        bool afterSwapReturnsDelta;
-        bool afterMintReturnsDelta;
-        bool afterBurnReturnsDelta;
+        bool beforeSwapReturnDelta;
+        bool afterSwapReturnDelta;
+        bool afterMintReturnDelta;
+        bool afterBurnReturnDelta;
     }
 
     /// @notice The address of the pool manager
@@ -86,8 +98,7 @@ abstract contract BinBaseHook is IBinHooks {
         _;
     }
 
-    /// @dev Helper function when the hook needs to get a lock from the vault. See
-    ///      https://github.com/pancakeswap/pancake-v4-hooks oh hooks which perform vault.lock()
+    /// @dev Delegate calls to corresponding methods according to callback data
     function lockAcquired(bytes calldata data) external virtual vaultOnly returns (bytes memory) {
         (bool success, bytes memory returnData) = address(this).call(data);
         if (success) return returnData;
@@ -99,78 +110,186 @@ abstract contract BinBaseHook is IBinHooks {
         }
     }
 
-    function beforeInitialize(address, PoolKey calldata, uint24, bytes calldata) external virtual returns (bytes4) {
-        revert HookNotImplemented();
-    }
-
-    function afterInitialize(address, PoolKey calldata, uint24, bytes calldata) external virtual returns (bytes4) {
-        revert HookNotImplemented();
-    }
-
-    function beforeMint(address, PoolKey calldata, IBinPoolManager.MintParams calldata, bytes calldata)
+    /// @inheritdoc IBinHooks
+    function beforeInitialize(address sender, PoolKey calldata key, uint24 activeId)
         external
+        virtual
+        poolManagerOnly
+        returns (bytes4)
+    {
+        return _beforeInitialize(sender, key, activeId);
+    }
+
+    function _beforeInitialize(address, PoolKey calldata, uint24) internal virtual returns (bytes4) {
+        revert HookNotImplemented();
+    }
+
+    /// @inheritdoc IBinHooks
+    function afterInitialize(address sender, PoolKey calldata key, uint24 activeId)
+        external
+        virtual
+        poolManagerOnly
+        returns (bytes4)
+    {
+        return _afterInitialize(sender, key, activeId);
+    }
+
+    function _afterInitialize(address, PoolKey calldata, uint24) internal virtual returns (bytes4) {
+        revert HookNotImplemented();
+    }
+
+    /// @inheritdoc IBinHooks
+    function beforeMint(
+        address sender,
+        PoolKey calldata key,
+        IBinPoolManager.MintParams calldata params,
+        bytes calldata hookData
+    ) external virtual poolManagerOnly returns (bytes4, uint24) {
+        return _beforeMint(sender, key, params, hookData);
+    }
+
+    function _beforeMint(address, PoolKey calldata, IBinPoolManager.MintParams calldata, bytes calldata)
+        internal
         virtual
         returns (bytes4, uint24)
     {
         revert HookNotImplemented();
     }
 
-    function afterMint(address, PoolKey calldata, IBinPoolManager.MintParams calldata, BalanceDelta, bytes calldata)
-        external
+    /// @inheritdoc IBinHooks
+    function afterMint(
+        address sender,
+        PoolKey calldata key,
+        IBinPoolManager.MintParams calldata params,
+        BalanceDelta delta,
+        bytes calldata hookData
+    ) external virtual poolManagerOnly returns (bytes4, BalanceDelta) {
+        return _afterMint(sender, key, params, delta, hookData);
+    }
+
+    function _afterMint(address, PoolKey calldata, IBinPoolManager.MintParams calldata, BalanceDelta, bytes calldata)
+        internal
         virtual
         returns (bytes4, BalanceDelta)
     {
         revert HookNotImplemented();
     }
 
-    function beforeBurn(address, PoolKey calldata, IBinPoolManager.BurnParams calldata, bytes calldata)
-        external
+    /// @inheritdoc IBinHooks
+    function beforeBurn(
+        address sender,
+        PoolKey calldata key,
+        IBinPoolManager.BurnParams calldata params,
+        bytes calldata hookData
+    ) external virtual poolManagerOnly returns (bytes4) {
+        return _beforeBurn(sender, key, params, hookData);
+    }
+
+    function _beforeBurn(address, PoolKey calldata, IBinPoolManager.BurnParams calldata, bytes calldata)
+        internal
         virtual
         returns (bytes4)
     {
         revert HookNotImplemented();
     }
 
-    function afterBurn(address, PoolKey calldata, IBinPoolManager.BurnParams calldata, BalanceDelta, bytes calldata)
-        external
+    /// @inheritdoc IBinHooks
+    function afterBurn(
+        address sender,
+        PoolKey calldata key,
+        IBinPoolManager.BurnParams calldata params,
+        BalanceDelta delta,
+        bytes calldata hookData
+    ) external virtual poolManagerOnly returns (bytes4, BalanceDelta) {
+        return _afterBurn(sender, key, params, delta, hookData);
+    }
+
+    function _afterBurn(address, PoolKey calldata, IBinPoolManager.BurnParams calldata, BalanceDelta, bytes calldata)
+        internal
         virtual
         returns (bytes4, BalanceDelta)
     {
         revert HookNotImplemented();
     }
 
-    function beforeSwap(address, PoolKey calldata, bool, int128, bytes calldata)
-        external
+    /// @inheritdoc IBinHooks
+    function beforeSwap(
+        address sender,
+        PoolKey calldata key,
+        bool swapForY,
+        int128 amountSpecified,
+        bytes calldata hookData
+    ) external virtual poolManagerOnly returns (bytes4, BeforeSwapDelta, uint24) {
+        return _beforeSwap(sender, key, swapForY, amountSpecified, hookData);
+    }
+
+    function _beforeSwap(address, PoolKey calldata, bool, int128, bytes calldata)
+        internal
         virtual
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         revert HookNotImplemented();
     }
 
-    function afterSwap(address, PoolKey calldata, bool, int128, BalanceDelta, bytes calldata)
-        external
+    /// @inheritdoc IBinHooks
+    function afterSwap(
+        address sender,
+        PoolKey calldata key,
+        bool swapForY,
+        int128 amountSpecified,
+        BalanceDelta delta,
+        bytes calldata hookData
+    ) external virtual poolManagerOnly returns (bytes4, int128) {
+        return _afterSwap(sender, key, swapForY, amountSpecified, delta, hookData);
+    }
+
+    function _afterSwap(address, PoolKey calldata, bool, int128, BalanceDelta, bytes calldata)
+        internal
         virtual
         returns (bytes4, int128)
     {
         revert HookNotImplemented();
     }
 
-    function beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
-        external
+    /// @inheritdoc IBinHooks
+    function beforeDonate(
+        address sender,
+        PoolKey calldata key,
+        uint256 amount0,
+        uint256 amount1,
+        bytes calldata hookData
+    ) external virtual poolManagerOnly returns (bytes4) {
+        return _beforeDonate(sender, key, amount0, amount1, hookData);
+    }
+
+    function _beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
+        internal
         virtual
         returns (bytes4)
     {
         revert HookNotImplemented();
     }
 
-    function afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
-        external
+    /// @inheritdoc IBinHooks
+    function afterDonate(
+        address sender,
+        PoolKey calldata key,
+        uint256 amount0,
+        uint256 amount1,
+        bytes calldata hookData
+    ) external virtual poolManagerOnly returns (bytes4) {
+        return _afterDonate(sender, key, amount0, amount1, hookData);
+    }
+
+    function _afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
+        internal
         virtual
         returns (bytes4)
     {
         revert HookNotImplemented();
     }
 
+    /// @dev Helper function to construct the hook registration map
     function _hooksRegistrationBitmapFrom(Permissions memory permissions) internal pure returns (uint16) {
         return uint16(
             (permissions.beforeInitialize ? 1 << HOOKS_BEFORE_INITIALIZE_OFFSET : 0)
@@ -183,10 +302,10 @@ abstract contract BinBaseHook is IBinHooks {
                 | (permissions.afterSwap ? 1 << HOOKS_AFTER_SWAP_OFFSET : 0)
                 | (permissions.beforeDonate ? 1 << HOOKS_BEFORE_DONATE_OFFSET : 0)
                 | (permissions.afterDonate ? 1 << HOOKS_AFTER_DONATE_OFFSET : 0)
-                | (permissions.beforeSwapReturnsDelta ? 1 << HOOKS_BEFORE_SWAP_RETURNS_DELTA_OFFSET : 0)
-                | (permissions.afterSwapReturnsDelta ? 1 << HOOKS_AFTER_SWAP_RETURNS_DELTA_OFFSET : 0)
-                | (permissions.afterMintReturnsDelta ? 1 << HOOKS_AFTER_MINT_RETURNS_DELTA_OFFSET : 0)
-                | (permissions.afterBurnReturnsDelta ? 1 << HOOKS_AFTER_BURN_RETURNS_DELTA_OFFSET : 0)
+                | (permissions.beforeSwapReturnDelta ? 1 << HOOKS_BEFORE_SWAP_RETURNS_DELTA_OFFSET : 0)
+                | (permissions.afterSwapReturnDelta ? 1 << HOOKS_AFTER_SWAP_RETURNS_DELTA_OFFSET : 0)
+                | (permissions.afterMintReturnDelta ? 1 << HOOKS_AFTER_MINT_RETURNS_DELTA_OFFSET : 0)
+                | (permissions.afterBurnReturnDelta ? 1 << HOOKS_AFTER_BURN_RETURNS_DELTA_OFFSET : 0)
         );
     }
 }

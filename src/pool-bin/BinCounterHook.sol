@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {PoolKey} from "pancake-v4-core/src/types/PoolKey.sol";
-import {BalanceDelta, BalanceDeltaLibrary} from "pancake-v4-core/src/types/BalanceDelta.sol";
-import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "pancake-v4-core/src/types/BeforeSwapDelta.sol";
-import {PoolId, PoolIdLibrary} from "pancake-v4-core/src/types/PoolId.sol";
-import {IBinPoolManager} from "pancake-v4-core/src/pool-bin/interfaces/IBinPoolManager.sol";
+import {PoolKey} from "infinity-core/src/types/PoolKey.sol";
+import {BalanceDelta, BalanceDeltaLibrary} from "infinity-core/src/types/BalanceDelta.sol";
+import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "infinity-core/src/types/BeforeSwapDelta.sol";
+import {PoolId, PoolIdLibrary} from "infinity-core/src/types/PoolId.sol";
+import {IBinPoolManager} from "infinity-core/src/pool-bin/interfaces/IBinPoolManager.sol";
 import {BinBaseHook} from "./BinBaseHook.sol";
 
 /// @notice BinCounterHook is a contract that counts the number of times a hook is called
@@ -33,48 +33,46 @@ contract BinCounterHook is BinBaseHook {
                 afterSwap: true,
                 beforeDonate: false,
                 afterDonate: false,
-                beforeSwapReturnsDelta: false,
-                afterSwapReturnsDelta: false,
-                afterMintReturnsDelta: false,
-                afterBurnReturnsDelta: false
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: false,
+                afterMintReturnDelta: false,
+                afterBurnReturnDelta: false
             })
         );
     }
 
-    function beforeMint(address, PoolKey calldata key, IBinPoolManager.MintParams calldata, bytes calldata)
-        external
+    function _beforeMint(address, PoolKey calldata key, IBinPoolManager.MintParams calldata, bytes calldata)
+        internal
         override
-        poolManagerOnly
         returns (bytes4, uint24)
     {
         beforeMintCount[key.toId()]++;
         return (this.beforeMint.selector, 0);
     }
 
-    function afterMint(address, PoolKey calldata key, IBinPoolManager.MintParams calldata, BalanceDelta, bytes calldata)
-        external
-        override
-        poolManagerOnly
-        returns (bytes4, BalanceDelta)
-    {
+    function _afterMint(
+        address,
+        PoolKey calldata key,
+        IBinPoolManager.MintParams calldata,
+        BalanceDelta,
+        bytes calldata
+    ) internal override returns (bytes4, BalanceDelta) {
         afterMintCount[key.toId()]++;
         return (this.afterMint.selector, BalanceDeltaLibrary.ZERO_DELTA);
     }
 
-    function beforeSwap(address, PoolKey calldata key, bool, int128, bytes calldata)
-        external
+    function _beforeSwap(address, PoolKey calldata key, bool, int128, bytes calldata)
+        internal
         override
-        poolManagerOnly
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         beforeSwapCount[key.toId()]++;
         return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
-    function afterSwap(address, PoolKey calldata key, bool, int128, BalanceDelta, bytes calldata)
-        external
+    function _afterSwap(address, PoolKey calldata key, bool, int128, BalanceDelta, bytes calldata)
+        internal
         override
-        poolManagerOnly
         returns (bytes4, int128)
     {
         afterSwapCount[key.toId()]++;
