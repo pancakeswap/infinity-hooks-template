@@ -1,9 +1,6 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "lib/pancake-v4-universal-router"]
-	path = lib/pancake-v4-universal-router
-	url = https://github.com/pancakeswap/pancake-v4-universal-router
 [submodule "lib/infinity-universal-router"]
 	path = lib/infinity-universal-router
 	url = https://github.com/pancakeswap/infinity-universal-router
